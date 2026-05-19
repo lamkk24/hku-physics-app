@@ -12,6 +12,14 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1GV_-EKGctK81G4His80Eoj1TnhKxM16FMfUfdMK5Yso/edit?gid=0#gid=0" 
 df = conn.read(spreadsheet=SPREADSHEET_ID, usecols=list(range(7)))
 
+# --- NEW CLEANUP CODE ---
+# 1. Throw away any blank rows from Google Sheets
+df = df.dropna(subset=["question_id"])
+
+# 2. Make sure Python treats the difficulty column as actual math numbers
+df["difficulty_score"] = pd.to_numeric(df["difficulty_score"], errors="coerce")
+# ------------------------
+
 st.title("HKU Adaptive Physics Quiz")
 
 # 2. SETUP MEMORY
