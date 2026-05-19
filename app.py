@@ -9,7 +9,7 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 # Read the live Google Sheet
 # Replace 'YOUR_SPREADSHEET_ID' with the ID you saved in Step 1!
-SPREADSHEET_ID = "1GV_-EKGctK81G4His80Eoj1TnhKxM16FMfUfdMK5Yso" 
+SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1GV_-EKGctK81G4His80Eoj1TnhKxM16FMfUfdMK5Yso/edit?gid=0#gid=0" 
 df = conn.read(spreadsheet=SPREADSHEET_ID, usecols=list(range(7)))
 
 st.title("HKU Adaptive Physics Quiz")
