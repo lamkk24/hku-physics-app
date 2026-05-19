@@ -1,0 +1,49 @@
+[
+  {
+    "question_id": "PHYS_001",
+    "topic": "Kinematics",
+    "question_text": "A car accelerates from rest at 2 m/s^2. How far does it travel in 3 seconds?",
+    "image_url": null,
+    "options": [
+      "3 m",
+      "6 m",
+      "9 m",
+      "12 m"
+    ],
+    "correct_answer": "9 m",
+    "total_attempts": 30,
+    "correct_attempts": 12,
+    "difficulty_score": 0.60
+  },
+  {
+    "question_id": "PHYS_002",
+    "topic": "Circuits",
+    "question_text": "What is the equivalent resistance of the circuit shown in the diagram below?",
+    "options": [
+      "5 Ohms",
+      "10 Ohms",
+      "15 Ohms",
+      "20 Ohms"
+    ],
+    "correct_answer": "10 Ohms",
+    "total_attempts": 30,
+    "correct_attempts": 8,
+    "difficulty_score": 0.73
+  },
+  {
+    "question_id": "PHYS_003",
+    "topic": "Newton's Laws",
+    "question_text": "What is the standard unit of force?",
+    "image_url": null, 
+    "options": [
+      "Joules",
+      "Newtons",
+      "Watts",
+      "Pascals"
+    ],
+    "correct_answer": "Newtons",
+    "total_attempts": 30,
+    "correct_attempts": 29,
+    "difficulty_score": 0.03
+  }
+]
