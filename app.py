@@ -9,7 +9,7 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 # Read the live Google Sheet
 # Replace 'YOUR_SPREADSHEET_ID' with the ID you saved in Step 1!
-SPREADSHEET_ID = "YOUR_SPREADSHEET_ID" 
+SPREADSHEET_ID = "1GV_-EKGctK81G4His80Eoj1TnhKxM16FMfUfdMK5Yso" 
 df = conn.read(spreadsheet=SPREADSHEET_ID, usecols=list(range(7)))
 
 st.title("HKU Adaptive Physics Quiz")
@@ -79,7 +79,7 @@ if not st.session_state.answered:
         df.at[current_idx, 'difficulty_score'] = round(new_difficulty, 2)
         
         # Save the updated math back to Google Sheets!
-        conn.update(spreadsheet="1GV_-EKGctK81G4His80Eoj1TnhKxM16FMfUfdMK5Yso", data=df)
+        conn.update(spreadsheet=SPREADSHEET_ID, data=df)
         
         st.rerun()
 
