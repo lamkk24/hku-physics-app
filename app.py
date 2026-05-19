@@ -31,6 +31,11 @@ if "current_question_index" not in st.session_state:
     st.session_state.current_question_index = None
 if "answered" not in st.session_state:
     st.session_state.answered = False
+# --- NEW MEMORY FOR AI BUTTON ---
+if "is_correct" not in st.session_state:
+    st.session_state.is_correct = None
+if "ai_explanation" not in st.session_state:
+    st.session_state.ai_explanation = None
 
 # 3. ADAPTIVE LOGIC: Pick the best question
 if st.session_state.current_question_index is None:
@@ -67,32 +72,51 @@ if not st.session_state.answered:
         df.at[current_idx, 'total_attempts'] += 1
         
         if student_choice == question_row["correct_answer"]:
-            st.success("Correct! Excellent job.")
-            st.session_state.skill_level = min(1.0, st.session_state.skill_level + 0.15) # Increase skill
+            st.session_state.is_correct = True # Remember they got it right!
+            st.session_state.skill_level = min(1.0, st.session_state.skill_level + 0.15)
             df.at[current_idx, 'correct_attempts'] += 1
         else:
-            st.error(f"Incorrect. The correct answer was {question_row['correct_answer']}.")
-            st.session_state.skill_level = max(0.0, st.session_state.skill_level - 0.15) # Decrease skill
-            
+            st.session_state.is_correct = False # Remember they got it wrong!
+            st.session_state.skill_level = max(0.0, st.session_state.skill_level - 0.15)
+        
+        # Recalculate difficulty & Save to Google Sheets
+        new_difficulty = 1.0 - (df.at[current_idx, 'correct_attempts'] / df.at[current_idx, 'total_attempts'])
+        df.at[current_idx, 'difficulty_score'] = round(new_difficulty, 2)
+        conn.update(spreadsheet=SPREADSHEET_ID, data=df)
+        
+        st.rerun()
+
+# 6. AFTER SUBMIT: FEEDBACK, AI BUTTON, AND NEXT QUESTION
+if st.session_state.answered:
+    
+    # Show if they were right or wrong based on our memory variable
+    if st.session_state.is_correct:
+        st.success("Correct! Excellent job.")
+    else:
+        st.error(f"Incorrect. The correct answer was {question_row['correct_answer']}.")
+        
+        # --- THE NEW ON-DEMAND AI BUTTON ---
+        if st.button("🤖 Ask AI Tutor for Help"):
             with st.spinner("The AI Tutor is analyzing your answer..."):
                 prompt = f"Student guessed {student_choice} instead of {question_row['correct_answer']} for '{question_row['question_text']}'. Briefly explain why they are wrong using $ for math."
                 response = client.chat.completions.create(
                     model="openai/gpt-oss-120b:free", 
                     messages=[{"role": "system", "content": "You are a physics tutor."}, {"role": "user", "content": prompt}]
                 )
-                st.info(response.choices[0].message.content)
+                # Save the AI's response to memory so it doesn't disappear
+                st.session_state.ai_explanation = response.choices[0].message.content
         
-        # Recalculate difficulty: 1.0 - (correct / total)
-        new_difficulty = 1.0 - (df.at[current_idx, 'correct_attempts'] / df.at[current_idx, 'total_attempts'])
-        df.at[current_idx, 'difficulty_score'] = round(new_difficulty, 2)
-        
-        # Save the updated math back to Google Sheets!
-        conn.update(spreadsheet=SPREADSHEET_ID, data=df)
-        
-        st.rerun()
+        # If the AI has generated an explanation, display it!
+        if st.session_state.ai_explanation:
+            st.info(st.session_state.ai_explanation)
 
-if st.session_state.answered:
+    # The Next Question Button
     if st.button("Next Question"):
-        st.session_state.current_question_index = None # Force it to pick a new question
+        st.session_state.current_question_index = None # Force new question
         st.session_state.answered = False
+        
+        # Reset our AI memory variables for the next question!
+        st.session_state.is_correct = None
+        st.session_state.ai_explanation = None
+        
         st.rerun()
