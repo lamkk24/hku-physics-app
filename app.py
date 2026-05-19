@@ -95,16 +95,35 @@ if st.session_state.answered:
     else:
         st.error(f"Incorrect. The correct answer was {question_row['correct_answer']}.")
         
-        # --- THE NEW ON-DEMAND AI BUTTON ---
+# --- THE NEW ON-DEMAND AI BUTTON ---
         if st.button("🤖 Ask AI Tutor for Help"):
             with st.spinner("The AI Tutor is analyzing your answer..."):
-                prompt = f"Student guessed {student_choice} instead of {question_row['correct_answer']} for '{question_row['question_text']}'. Briefly explain why they are wrong using $ for math."
+                
+                # 1. A much stricter prompt!
+                prompt = f"""
+                The student guessed {student_choice} instead of {question_row['correct_answer']} for the following question: 
+                "{question_row['question_text']}"
+                
+                Briefly explain why they are wrong.
+                
+                CRITICAL FORMATTING RULE: 
+                You MUST use $ for inline math and $$ for standalone math blocks. 
+                Absolutely DO NOT use [ ], \[ \], or \( \) for math equations.
+                """
+                
                 response = client.chat.completions.create(
                     model="openai/gpt-oss-120b:free", 
-                    messages=[{"role": "system", "content": "You are a physics tutor."}, {"role": "user", "content": prompt}]
+                    messages=[{"role": "system", "content": "You are a helpful university physics tutor."}, {"role": "user", "content": prompt}]
                 )
-                # Save the AI's response to memory so it doesn't disappear
-                st.session_state.ai_explanation = response.choices[0].message.content
+                
+                raw_text = response.choices[0].message.content
+                
+                # 2. The Python Safety Net! (Forces stubborn brackets to become dollar signs)
+                clean_text = raw_text.replace("\\[", "$$").replace("\\]", "$$").replace("\\(", "$").replace("\\)", "$")
+                clean_text = clean_text.replace("[ ", "$$ ").replace(" ]", " $$")
+                
+                # Save the cleaned AI's response to memory
+                st.session_state.ai_explanation = clean_text
         
         # If the AI has generated an explanation, display it!
         if st.session_state.ai_explanation:
