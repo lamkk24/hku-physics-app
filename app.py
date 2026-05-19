@@ -79,7 +79,7 @@ if not st.session_state.answered:
         df.at[current_idx, 'difficulty_score'] = round(new_difficulty, 2)
         
         # Save the updated math back to Google Sheets!
-        conn.update(spreadsheet=SPREADSHEET_ID, data=df)
+        conn.update(spreadsheet=1GV_-EKGctK81G4His80Eoj1TnhKxM16FMfUfdMK5Yso, data=df)
         
         st.rerun()
 
