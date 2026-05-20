@@ -8,7 +8,7 @@ client = OpenAI(api_key=st.secrets["OPENROUTER_API_KEY"], base_url="https://open
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1GV_-EKGctK81G4His80Eoj1TnhKxM16FMfUfdMK5Yso/edit" 
-df = conn.read(spreadsheet=SPREADSHEET_ID, usecols=list(range(7)))
+df = conn.read(spreadsheet=SPREADSHEET_ID, usecols=list(range(8)))
 
 # --- BULLETPROOF CLEANUP ---
 df.columns = df.columns.str.strip()
@@ -96,6 +96,13 @@ else:
     question_row = df.loc[current_idx]
 
     st.subheader(question_row["question_text"])
+    
+    # --- NEW IMAGE LOGIC ---
+    # Check if the image_url column exists, is not empty, and is not a blank space
+    if "image_url" in question_row and pd.notna(question_row["image_url"]) and str(question_row["image_url"]).strip() != "":
+        st.image(str(question_row["image_url"]).strip())
+    # -----------------------
+
     options_list = [opt.strip() for opt in question_row["options"].split(",")]
     student_choice = st.radio("Select your answer:", options_list, key=f"radio_{current_idx}")
 
