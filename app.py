@@ -71,7 +71,7 @@ if not st.session_state.answered:
         # Update Google Sheet Data Memory
         df.at[current_idx, 'total_attempts'] += 1
         
-        if student_choice == if str(student_choice).strip() == str(question_row["correct_answer"]).strip():
+        if str(student_choice).strip() == str(question_row["correct_answer"]).strip():
             st.session_state.is_correct = True # Remember they got it right!
             st.session_state.skill_level = min(1.0, st.session_state.skill_level + 0.15)
             df.at[current_idx, 'correct_attempts'] += 1
