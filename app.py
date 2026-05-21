@@ -125,11 +125,16 @@ else:
             except:
                 counts = {} # If it's empty, start a new dictionary
                 
-            choice_str = str(student_choice).strip()
-            if choice_str in counts:
-                counts[choice_str] += 1
+            # --- NEW LETTER MAPPING LOGIC ---
+            # Find the position of their choice and assign it a letter
+            choice_index = options_list.index(student_choice)
+            letter_mapping = ["A", "B", "C", "D", "E", "F"] 
+            letter_choice = letter_mapping[choice_index]
+            
+            if letter_choice in counts:
+                counts[letter_choice] += 1
             else:
-                counts[choice_str] = 1
+                counts[letter_choice] = 1
                 
             # Save the dictionary back to the dataframe
             df.at[current_idx, 'choice_counts'] = json.dumps(counts)
