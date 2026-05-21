@@ -100,7 +100,27 @@ else:
         # STOP CONDITION: If they run out of questions OR hit the 20 question limit
         if unseen_df.empty or answered_count >= MAX_QUESTIONS:
             st.success(f"🎉 Fantastic job, {st.session_state.student_name}! You have completed the quiz.")
-            st.stop()
+            
+            # --- NEW RETURN BUTTON ---
+            if st.button("🏠 Return to Start Page"):
+                # Close the quiz door
+                st.session_state.quiz_started = False
+                
+                # Wipe the memory clean for the next student
+                st.session_state.student_name = ""
+                st.session_state.student_id = ""
+                st.session_state.skill_level = 0.50
+                st.session_state.skill_history = [0.50]
+                st.session_state.seen_questions = []
+                st.session_state.current_question_index = None
+                st.session_state.answered = False
+                st.session_state.is_correct = None
+                st.session_state.ai_explanation = None
+                
+                st.rerun()
+            # -------------------------
+            
+            st.stop() # Prevents the rest of the quiz from loading
         else:
             unseen_df['skill_gap'] = abs(unseen_df['difficulty_score'] - st.session_state.skill_level)
             best_match_index = unseen_df['skill_gap'].idxmin()
