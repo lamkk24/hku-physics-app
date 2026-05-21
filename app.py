@@ -113,9 +113,13 @@ else:
     st.subheader(question_row["question_text"])
     
     # --- NEW IMAGE LOGIC ---
-    # Check if the image_url column exists, is not empty, and is not a blank space
-    if "image_url" in question_row and pd.notna(question_row["image_url"]) and str(question_row["image_url"]).strip() != "":
-        st.image(str(question_row["image_url"]).strip())
+    # Safely get the image URL as a string
+    img_url = str(question_row.get("image_url", "")).strip()
+    
+    # Only show the image IF it actually starts with "http" (a real link)
+    # This automatically ignores "PASTE_LINK_HERE", "nan", or blank spaces!
+    if img_url.startswith("http"):
+        st.image(img_url)
     # -----------------------
 
     options_list = [opt.strip() for opt in question_row["options"].split(",")]
