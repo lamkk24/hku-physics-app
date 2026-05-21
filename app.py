@@ -171,6 +171,36 @@ else:
                         st.write(f"**Question:** {wrong['question']}")
                         st.write(f"❌ **You answered:** {wrong['student']}")
                         st.write(f"✅ **Correct answer:** {wrong['correct']}")
+                        
+                        # If the AI already explained this, show it!
+                        if wrong['explanation']:
+                            st.info(wrong['explanation'])
+                        # Otherwise, show the button to ask the AI
+                        else:
+                            # We use key=f"ai_btn_{idx}" so Streamlit doesn't get confused by multiple buttons
+                            if st.button("🤖 Ask AI Tutor for Help", key=f"ai_btn_{idx}"):
+                                with st.spinner("The AI Tutor is analyzing your answer..."):
+                                    prompt = f"""
+                                    The student guessed {wrong['student']} instead of {wrong['correct']} for the following question: 
+                                    "{wrong['question']}"
+                                    {wrong['context']}
+                                    Briefly explain why they are wrong.
+                                    CRITICAL FORMATTING RULE: 
+                                    You MUST use $ for inline math and $$ for standalone math blocks. 
+                                    Absolutely DO NOT use [ ], \[ \], or \( \) for math equations.
+                                    """
+                                    response = client.chat.completions.create(
+                                        model="openai/gpt-oss-120b:free", 
+                                        messages=[{"role": "system", "content": "You are a helpful university physics tutor."}, {"role": "user", "content": prompt}]
+                                    )
+                                    
+                                    raw_text = response.choices[0].message.content
+                                    clean_text = raw_text.replace("\\[", "$$").replace("\\]", "$$").replace("\\(", "$").replace("\\)", "$")
+                                    clean_text = clean_text.replace("[ ", "$$ ").replace(" ]", " $$")
+                                    
+                                    # Save the explanation to memory so it stays open
+                                    st.session_state.wrong_answers[idx]['explanation'] = clean_text
+                                    st.rerun()
             else:
                 st.write("Wow, a perfect score! Nothing to review.")
             
@@ -244,11 +274,18 @@ else:
                 st.session_state.is_correct = False
                 st.session_state.skill_level = max(0.0, st.session_state.skill_level - 0.15)
                 
+                # Grab the hidden context for the AI just in case this question has an image
+                hidden_context = ""
+                if "ai_context" in question_row and pd.notna(question_row["ai_context"]):
+                    hidden_context = f"Image description for context: {question_row['ai_context']}"
+                
                 # --- RECORD WRONG ANSWER FOR REVIEW ---
                 st.session_state.wrong_answers.append({
                     "question": question_row["question_text"],
                     "student": student_choice,
-                    "correct": question_row["correct_answer"]
+                    "correct": question_row["correct_answer"],
+                    "context": hidden_context,
+                    "explanation": None # Blank space to save the AI response later
                 })
             
             st.session_state.skill_history.append(st.session_state.skill_level)
@@ -267,39 +304,9 @@ else:
             st.success("Correct! Excellent job.")
         else:
             st.error(f"Incorrect. The correct answer was {question_row['correct_answer']}.")
-            
-            if st.button("🤖 Ask AI Tutor for Help"):
-                with st.spinner("The AI Tutor is analyzing your answer..."):
-                    hidden_context = ""
-                    if "ai_context" in question_row and pd.notna(question_row["ai_context"]):
-                        hidden_context = f"Image description for context: {question_row['ai_context']}"
-                        
-                    prompt = f"""
-                    The student guessed {student_choice} instead of {question_row['correct_answer']} for the following question: 
-                    "{question_row['question_text']}"
-                    {hidden_context}
-                    Briefly explain why they are wrong.
-                    CRITICAL FORMATTING RULE: 
-                    You MUST use $ for inline math and $$ for standalone math blocks. 
-                    Absolutely DO NOT use [ ], \[ \], or \( \) for math equations.
-                    """
-                    response = client.chat.completions.create(
-                        model="openai/gpt-oss-120b:free", 
-                        messages=[{"role": "system", "content": "You are a helpful university physics tutor."}, {"role": "user", "content": prompt}]
-                    )
-                    
-                    raw_text = response.choices[0].message.content
-                    clean_text = raw_text.replace("\\[", "$$").replace("\\]", "$$").replace("\\(", "$").replace("\\)", "$")
-                    clean_text = clean_text.replace("[ ", "$$ ").replace(" ]", " $$")
-                    
-                    st.session_state.ai_explanation = clean_text
-            
-            if st.session_state.ai_explanation:
-                st.info(st.session_state.ai_explanation)
 
         if st.button("Next Question"):
             st.session_state.current_question_index = None
             st.session_state.answered = False
             st.session_state.is_correct = None
-            st.session_state.ai_explanation = None
             st.rerun()
