@@ -42,6 +42,12 @@ if "is_correct" not in st.session_state:
     st.session_state.is_correct = None
 if "ai_explanation" not in st.session_state:
     st.session_state.ai_explanation = None
+if "session_score" not in st.session_state:
+    st.session_state.session_score = 0
+if "student_choices" not in st.session_state:
+    st.session_state.student_choices = []
+if "record_saved" not in st.session_state:
+    st.session_state.record_saved = False
 
 # ==========================================
 # VIEW 1: THE START PAGE
@@ -99,14 +105,31 @@ else:
         
         # STOP CONDITION: If they run out of questions OR hit the 20 question limit
         if unseen_df.empty or answered_count >= MAX_QUESTIONS:
-            st.success(f"🎉 Fantastic job, {st.session_state.student_name}! You have completed the quiz.")
+            
+            # --- SAVE TO GRADEBOOK ---
+            # Make sure we only save this once so they don't get duplicate rows!
+            if not st.session_state.record_saved:
+                records_df = conn.read(spreadsheet=SPREADSHEET_ID, worksheet="Student Records")
+                
+                new_record = pd.DataFrame([{
+                    "Name": st.session_state.student_name,
+                    "Student ID": st.session_state.student_id,
+                    "Score": f"{st.session_state.session_score} / {answered_count}",
+                    "Questions Asked": ", ".join(st.session_state.seen_questions),
+                    "Answers Given": ", ".join(st.session_state.student_choices)
+                }])
+                
+                updated_records = pd.concat([records_df, new_record], ignore_index=True)
+                conn.update(spreadsheet=SPREADSHEET_ID, worksheet="Student Records", data=updated_records)
+                st.cache_data.clear() # Clear cache to ensure it saves!
+                st.session_state.record_saved = True
+            # -------------------------
+            
+            st.success(f"🎉 Fantastic job, {st.session_state.student_name}! You scored {st.session_state.session_score} / {answered_count}.")
             
             # --- NEW RETURN BUTTON ---
             if st.button("🏠 Return to Start Page"):
-                # Close the quiz door
                 st.session_state.quiz_started = False
-                
-                # Wipe the memory clean for the next student
                 st.session_state.student_name = ""
                 st.session_state.student_id = ""
                 st.session_state.skill_level = 0.50
@@ -117,10 +140,14 @@ else:
                 st.session_state.is_correct = None
                 st.session_state.ai_explanation = None
                 
+                # Reset the new gradebook memory
+                st.session_state.session_score = 0
+                st.session_state.student_choices = []
+                st.session_state.record_saved = False
+                
                 st.rerun()
             # -------------------------
-            
-            st.stop() # Prevents the rest of the quiz from loading
+            st.stop()
         else:
             unseen_df['skill_gap'] = abs(unseen_df['difficulty_score'] - st.session_state.skill_level)
             best_match_index = unseen_df['skill_gap'].idxmin()
@@ -166,6 +193,8 @@ else:
             letter_mapping = ["A", "B", "C", "D", "E", "F"] 
             letter_choice = letter_mapping[choice_index]
             
+            st.session_state.student_choices.append(letter_choice)
+            
             if letter_choice in counts:
                 counts[letter_choice] += 1
             else:
@@ -179,6 +208,7 @@ else:
                 st.session_state.is_correct = True
                 st.session_state.skill_level = min(1.0, st.session_state.skill_level + 0.15)
                 df.at[current_idx, 'correct_attempts'] += 1
+                st.session_state.session_score += 1
             else:
                 st.session_state.is_correct = False
                 st.session_state.skill_level = max(0.0, st.session_state.skill_level - 0.15)
