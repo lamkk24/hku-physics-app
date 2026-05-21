@@ -89,7 +89,7 @@ else:
         st.write(f"**Skill Level:** {round(st.session_state.skill_level, 2)}")
         # Progress bar based on skill (clamped between 0.0 and 1.0)
         safe_skill = min(1.0, max(0.0, st.session_state.skill_level))
-        st.progress(safe_skill
+        st.progress(safe_skill)
     
     # The Line Chart (hidden in an expander to keep the screen clean)
     with st.expander("📈 View Skill Growth Chart"):
