@@ -71,38 +71,35 @@ else:
     st.write(f"Student: **{st.session_state.student_name}** ({st.session_state.student_id})")
     
     # --- VISUAL PROGRESS DASHBOARD ---
-    total_questions = len(df)
+    MAX_QUESTIONS = 20 # You can easily change this number later!
+    total_questions = min(MAX_QUESTIONS, len(df)) # Prevents errors if you have fewer than 20 questions in the sheet
     answered_count = len(st.session_state.seen_questions)
     
-    # Calculate the current question number (and stop it from saying 71/70 at the end)
+    # Calculate the current question number
     current_q_num = min(answered_count + 1, total_questions)
     
-    # Create two columns for a clean side-by-side layout
     col1, col2 = st.columns(2)
     
     with col1:
         st.write(f"**Question:** {current_q_num} / {total_questions}")
-        # Progress bar based on completion percentage
-        st.progress(answered_count / total_questions)
+        # Make sure the progress bar doesn't break if they somehow exceed the total
+        safe_progress = min(1.0, answered_count / total_questions)
+        st.progress(safe_progress)
         
     with col2:
         st.write(f"**Skill Level:** {round(st.session_state.skill_level, 2)}")
-        # Progress bar based on skill (clamped between 0.0 and 1.0)
         safe_skill = min(1.0, max(0.0, st.session_state.skill_level))
         st.progress(safe_skill)
     
-    # The Line Chart (hidden in an expander to keep the screen clean)
-    with st.expander("📈 View Skill Growth Chart"):
-        st.line_chart(st.session_state.skill_history)
-    
-    st.divider() # A nice horizontal line to separate the progress from the question
+    st.divider()
 
     # 3. ADAPTIVE LOGIC
     if st.session_state.current_question_index is None:
         unseen_df = df[~df['question_id'].isin(st.session_state.seen_questions)]
         
-        if unseen_df.empty:
-            st.success(f"🎉 Fantastic job, {st.session_state.student_name}! You have completed all available questions.")
+        # STOP CONDITION: If they run out of questions OR hit the 20 question limit
+        if unseen_df.empty or answered_count >= MAX_QUESTIONS:
+            st.success(f"🎉 Fantastic job, {st.session_state.student_name}! You have completed the quiz.")
             st.stop()
         else:
             unseen_df['skill_gap'] = abs(unseen_df['difficulty_score'] - st.session_state.skill_level)
