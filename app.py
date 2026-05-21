@@ -5,6 +5,10 @@ import time
 from streamlit_gsheets import GSheetsConnection
 from openai import OpenAI
 
+# --- NEW: SET BROWSER TAB TITLE & ICON ---
+st.set_page_config(page_title="Physics Quiz App", page_icon="⚛️")
+# -----------------------------------------
+
 # 1. SETUP AI & DATABASE
 client = OpenAI(api_key=st.secrets["OPENROUTER_API_KEY"], base_url="https://openrouter.ai/api/v1")
 conn = st.connection("gsheets", type=GSheetsConnection)
