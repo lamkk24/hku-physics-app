@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import json
 from streamlit_gsheets import GSheetsConnection
 from openai import OpenAI
 
@@ -8,7 +9,7 @@ client = OpenAI(api_key=st.secrets["OPENROUTER_API_KEY"], base_url="https://open
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1GV_-EKGctK81G4His80Eoj1TnhKxM16FMfUfdMK5Yso/edit" 
-df = conn.read(spreadsheet=SPREADSHEET_ID, usecols=list(range(8)))
+df = conn.read(spreadsheet=SPREADSHEET_ID, usecols=list(range(9)), ttl=0)
 
 # --- BULLETPROOF CLEANUP ---
 df.columns = df.columns.str.strip()
@@ -16,6 +17,9 @@ df = df.dropna(subset=["question_id"])
 df["difficulty_score"] = df["difficulty_score"].astype(str).str.replace(',', '.')
 df["difficulty_score"] = pd.to_numeric(df["difficulty_score"], errors="coerce")
 df = df.dropna(subset=["difficulty_score"])
+
+# Make sure our new choice_counts column is ready to hold data
+df["choice_counts"] = df["choice_counts"].fillna("{}").astype(str)
 
 # 2. SETUP MEMORY
 if "quiz_started" not in st.session_state:
@@ -111,9 +115,26 @@ else:
         if st.button("Submit"):
             st.session_state.answered = True
             st.session_state.seen_questions.append(question_row["question_id"])
+            
+            # 1. Update Total Attempts
             df.at[current_idx, 'total_attempts'] += 1
             
-            # Check answer (using our strict text formatting)
+            # 2. Track the exact choice they made for your analysis!
+            try:
+                counts = json.loads(df.at[current_idx, 'choice_counts'])
+            except:
+                counts = {} # If it's empty, start a new dictionary
+                
+            choice_str = str(student_choice).strip()
+            if choice_str in counts:
+                counts[choice_str] += 1
+            else:
+                counts[choice_str] = 1
+                
+            # Save the dictionary back to the dataframe
+            df.at[current_idx, 'choice_counts'] = json.dumps(counts)
+            
+            # 3. Check if they were correct
             if str(student_choice).strip() == str(question_row["correct_answer"]).strip():
                 st.session_state.is_correct = True
                 st.session_state.skill_level = min(1.0, st.session_state.skill_level + 0.15)
@@ -122,13 +143,14 @@ else:
                 st.session_state.is_correct = False
                 st.session_state.skill_level = max(0.0, st.session_state.skill_level - 0.15)
             
-            # Record the new skill level for the Line Chart!
             st.session_state.skill_history.append(st.session_state.skill_level)
             
-            # Recalculate difficulty & Save to Google Sheets
+            # 4. Recalculate difficulty & Save to Google Sheets
             new_difficulty = 1.0 - (df.at[current_idx, 'correct_attempts'] / df.at[current_idx, 'total_attempts'])
             df.at[current_idx, 'difficulty_score'] = round(new_difficulty, 2)
+            
             conn.update(spreadsheet=SPREADSHEET_ID, data=df)
+            st.cache_data.clear() # SUPER IMPORTANT: Forces Streamlit to clear its memory and actually push the save!
             
             st.rerun()
 
