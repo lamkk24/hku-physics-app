@@ -9,7 +9,7 @@ client = OpenAI(api_key=st.secrets["OPENROUTER_API_KEY"], base_url="https://open
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1GV_-EKGctK81G4His80Eoj1TnhKxM16FMfUfdMK5Yso/edit" 
-df = conn.read(spreadsheet=SPREADSHEET_ID, usecols=list(range(9)), ttl=0)
+df = conn.read(spreadsheet=SPREADSHEET_ID, usecols=list(range(9)))
 
 # --- BULLETPROOF CLEANUP ---
 df.columns = df.columns.str.strip()
