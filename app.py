@@ -70,12 +70,26 @@ else:
     st.title(f"HKU Physics Quiz")
     st.write(f"Student: **{st.session_state.student_name}** ({st.session_state.student_id})")
     
-    # --- VISUAL PROGRESS TRACKING ---
-    st.write(f"**Current Skill Level:** {round(st.session_state.skill_level, 2)}")
+    # --- VISUAL PROGRESS DASHBOARD ---
+    total_questions = len(df)
+    answered_count = len(st.session_state.seen_questions)
     
-    # The Health Bar (Clamped between 0.0 and 1.0 to prevent errors)
-    safe_skill = min(1.0, max(0.0, st.session_state.skill_level))
-    st.progress(safe_skill)
+    # Calculate the current question number (and stop it from saying 71/70 at the end)
+    current_q_num = min(answered_count + 1, total_questions)
+    
+    # Create two columns for a clean side-by-side layout
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write(f"**Question:** {current_q_num} / {total_questions}")
+        # Progress bar based on completion percentage
+        st.progress(answered_count / total_questions)
+        
+    with col2:
+        st.write(f"**Skill Level:** {round(st.session_state.skill_level, 2)}")
+        # Progress bar based on skill (clamped between 0.0 and 1.0)
+        safe_skill = min(1.0, max(0.0, st.session_state.skill_level))
+        st.progress(safe_skill
     
     # The Line Chart (hidden in an expander to keep the screen clean)
     with st.expander("📈 View Skill Growth Chart"):
