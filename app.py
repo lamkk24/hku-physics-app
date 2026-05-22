@@ -27,15 +27,32 @@ df["choice_counts"] = df["choice_counts"].fillna("{}").astype(str)
 # --- FETCH TEACHER SETTINGS ---
 try:
     settings_df = conn.read(spreadsheet=SPREADSHEET_ID, worksheet="Settings")
-    # Find the time limit in the sheet and convert it to an integer
+    
+    # Get Time Limit
     time_limit_mins = int(settings_df.loc[settings_df['Setting'] == 'Time Limit', 'Value'].values[0])
+    
+    # Get Active Question Bank
+    active_bank = str(settings_df.loc[settings_df['Setting'] == 'Active Bank', 'Value'].values[0])
 except:
-    time_limit_mins = 30 # A safe fallback just in case the sheet fails to load
+    time_limit_mins = 30 
+    active_bank = "Sheet1" # Default fallback if it fails
 
 # Exam Settings
 MAX_QUESTIONS = 20
 TIME_LIMIT_SECONDS = time_limit_mins * 60 
-# ------------------------------
+
+# --- LOAD THE CORRECT QUESTION BANK ---
+# Notice we changed worksheet=active_bank instead of just pulling the default!
+df = conn.read(spreadsheet=SPREADSHEET_ID, worksheet=active_bank, usecols=list(range(9)))
+
+# Clean up the data
+df.columns = df.columns.str.strip()
+df = df.dropna(subset=["question_id"])
+df["difficulty_score"] = df["difficulty_score"].astype(str).str.replace(',', '.')
+df["difficulty_score"] = pd.to_numeric(df["difficulty_score"], errors="coerce")
+df = df.dropna(subset=["difficulty_score"])
+df["choice_counts"] = df["choice_counts"].fillna("{}").astype(str)
+# --------------------------------------
 
 # 2. SETUP MEMORY
 if "quiz_started" not in st.session_state:
@@ -114,15 +131,29 @@ elif st.session_state.admin_mode:
         
     # --- TAB 2: SETTINGS ---
     with tab2:
-        st.write("### Adjust Exam Parameters")
+        st.write("### ⚙️ Adjust Exam Parameters")
+        
+        # 1. Timer Control
         new_time = st.number_input("Time Limit (Minutes)", min_value=1, max_value=180, value=time_limit_mins)
         
-        if st.button("💾 Save Settings"):
-            # Update the dataframe and push it to Google Sheets
+        # 2. Bank Control
+        st.write("---")
+        st.write("### 🗂️ Select Question Bank")
+        st.info("Type the exact name of the tab in your Google Sheet you want to test students on today (e.g., 'Sheet1', 'Mechanics', 'Thermodynamics').")
+        new_bank = st.text_input("Active Tab Name:", value=active_bank)
+        
+        if st.button("💾 Save Global Settings"):
+            # Update the Time Limit
             settings_df.loc[settings_df['Setting'] == 'Time Limit', 'Value'] = new_time
+            
+            # Update the Active Bank
+            settings_df.loc[settings_df['Setting'] == 'Active Bank', 'Value'] = new_bank
+            
+            # Push changes to Google Sheets
             conn.update(spreadsheet=SPREADSHEET_ID, worksheet="Settings", data=settings_df)
-            st.cache_data.clear() # Clear cache so changes take effect instantly
-            st.success(f"Time limit successfully updated to {new_time} minutes!")
+            
+            st.cache_data.clear() # Clear cache so changes take effect instantly for students!
+            st.success(f"✅ Settings saved! Time limit is {new_time} mins, and students will now be tested on '{new_bank}'.")
             
     # --- TAB 3: UPLOAD TOOL ---
     with tab3:
