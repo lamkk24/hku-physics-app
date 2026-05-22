@@ -129,7 +129,7 @@ elif st.session_state.admin_mode:
         st.write("### Bulk Import Questions")
         
         # 1. Create the downloadable template for teachers (Updated format)
-        template_csv = "Question_id,Question,Image_url (if requried) Start with http:// or https://,Correct_answer,Initial difficulty score,Option 1,Option 2,Option 3,Option 4\nSample,Please delete this row after finished input question,,A,0.5,agree,diagree,partially agree,partially disagree"
+        template_csv = "Question_id,Question,Image_url (if requried) Start with http:// or https://,Correct_answer,Initial difficulty score,Option 1,Option 2,Option 3,Option 4\nSample,Please delete this row after finished input question,,agree,0.5,agree,diagree,partially agree,partially disagree"
         
         st.info("Step 1: Download the template and add your questions.")
         st.download_button(
