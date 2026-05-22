@@ -24,6 +24,19 @@ df["difficulty_score"] = pd.to_numeric(df["difficulty_score"], errors="coerce")
 df = df.dropna(subset=["difficulty_score"])
 df["choice_counts"] = df["choice_counts"].fillna("{}").astype(str)
 
+# --- FETCH TEACHER SETTINGS ---
+try:
+    settings_df = conn.read(spreadsheet=SPREADSHEET_ID, worksheet="Settings")
+    # Find the time limit in the sheet and convert it to an integer
+    time_limit_mins = int(settings_df.loc[settings_df['Setting'] == 'Time Limit', 'Value'].values[0])
+except:
+    time_limit_mins = 30 # A safe fallback just in case the sheet fails to load
+
+# Exam Settings
+MAX_QUESTIONS = 20
+TIME_LIMIT_SECONDS = time_limit_mins * 60 
+# ------------------------------
+
 # 2. SETUP MEMORY
 if "quiz_started" not in st.session_state:
     st.session_state.quiz_started = False
@@ -59,9 +72,6 @@ if "wrong_answers" not in st.session_state:
 if "start_time" not in st.session_state:
     st.session_state.start_time = None
 
-# Exam Settings
-MAX_QUESTIONS = 20
-TIME_LIMIT_SECONDS = 30 * 60 # 30 minutes
 
 # ==========================================
 # VIEW 1: THE START PAGE
@@ -91,15 +101,58 @@ if not st.session_state.quiz_started and not st.session_state.admin_mode:
 # VIEW 2: THE ADMIN DASHBOARD
 # ==========================================
 elif st.session_state.admin_mode:
-    st.title("👨‍🏫 Teacher Analytics Dashboard")
+    st.title("👨‍🏫 Teacher Admin Dashboard")
     
-    # Pull live gradebook data
-    records_df = conn.read(spreadsheet=SPREADSHEET_ID, worksheet="Student Records")
+    # Create clean navigation tabs
+    tab1, tab2, tab3 = st.tabs(["📊 Analytics", "⚙️ Quiz Settings", "📤 Upload Questions"])
     
-    st.write("### Live Student Records")
-    st.dataframe(records_df)
-    
-    if st.button("Logout"):
+    # --- TAB 1: GRADEBOOK ---
+    with tab1:
+        st.write("### Live Student Records")
+        records_df = conn.read(spreadsheet=SPREADSHEET_ID, worksheet="Student Records")
+        st.dataframe(records_df, use_container_width=True)
+        
+    # --- TAB 2: SETTINGS ---
+    with tab2:
+        st.write("### Adjust Exam Parameters")
+        new_time = st.number_input("Time Limit (Minutes)", min_value=1, max_value=180, value=time_limit_mins)
+        
+        if st.button("💾 Save Settings"):
+            # Update the dataframe and push it to Google Sheets
+            settings_df.loc[settings_df['Setting'] == 'Time Limit', 'Value'] = new_time
+            conn.update(spreadsheet=SPREADSHEET_ID, worksheet="Settings", data=settings_df)
+            st.cache_data.clear() # Clear cache so changes take effect instantly
+            st.success(f"Time limit successfully updated to {new_time} minutes!")
+            
+    # --- TAB 3: UPLOAD TOOL ---
+    with tab3:
+        st.write("### Bulk Import Questions")
+        st.info("Upload a **CSV** file. It must contain the exact same 9 columns as your main database.")
+        
+        uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
+        
+        if uploaded_file is not None:
+            try:
+                # Read the uploaded file
+                upload_df = pd.read_csv(uploaded_file)
+                
+                st.write("Preview of your uploaded questions:")
+                st.dataframe(upload_df.head(), use_container_width=True)
+                
+                if st.button("🚀 Confirm & Add to Database"):
+                    with st.spinner("Writing to Google Sheets..."):
+                        # Combine old questions with new questions
+                        updated_df = pd.concat([df, upload_df], ignore_index=True)
+                        
+                        # Push the massive new list back to your main sheet
+                        conn.update(spreadsheet=SPREADSHEET_ID, data=updated_df)
+                        st.cache_data.clear()
+                        st.success(f"Successfully added {len(upload_df)} new questions to the database!")
+            except Exception as e:
+                st.error(f"Error reading file. Please ensure your columns match the template exactly. (Error: {e})")
+        
+    st.write("---")
+    if st.button("Logout of Admin"):
         st.session_state.admin_mode = False
         st.rerun()
 
