@@ -27,23 +27,35 @@ df["choice_counts"] = df["choice_counts"].fillna("{}").astype(str)
 # --- FETCH TEACHER SETTINGS ---
 try:
     settings_df = conn.read(spreadsheet=SPREADSHEET_ID, worksheet="Settings")
-    
-    # Get Time Limit
     time_limit_mins = int(settings_df.loc[settings_df['Setting'] == 'Time Limit', 'Value'].values[0])
-    
-    # Get Active Question Bank
     active_bank = str(settings_df.loc[settings_df['Setting'] == 'Active Bank', 'Value'].values[0])
 except:
     time_limit_mins = 30 
-    active_bank = "Sheet1" # Default fallback if it fails
+    
+    # PUT YOUR EXACT TAB NAME HERE INSTEAD OF "Sheet1"
+    active_bank = "Sheet1"
 
 # Exam Settings
 MAX_QUESTIONS = 20
 TIME_LIMIT_SECONDS = time_limit_mins * 60 
 
 # --- LOAD THE CORRECT QUESTION BANK ---
-# Notice we changed worksheet=active_bank instead of just pulling the default!
-df = conn.read(spreadsheet=SPREADSHEET_ID, worksheet=active_bank, usecols=list(range(9)))
+try:
+    df = conn.read(spreadsheet=SPREADSHEET_ID, worksheet=active_bank, usecols=list(range(9)))
+    
+    # Clean up the data
+    df.columns = df.columns.str.strip()
+    df = df.dropna(subset=["question_id"])
+    df["difficulty_score"] = df["difficulty_score"].astype(str).str.replace(',', '.')
+    df["difficulty_score"] = pd.to_numeric(df["difficulty_score"], errors="coerce")
+    df = df.dropna(subset=["difficulty_score"])
+    df["choice_counts"] = df["choice_counts"].fillna("{}").astype(str)
+
+except Exception as e:
+    st.error(f"🚨 **DATABASE ERROR:** I am trying to load a tab named **'{active_bank}'**, but it doesn't exist in your Google Sheet!")
+    st.info("Please create a tab with that exact name, or log in as ADMIN to change the active tab.")
+    st.stop() # This stops the ugly red Traceback error!
+# --------------------------------------
 
 # Clean up the data
 df.columns = df.columns.str.strip()
