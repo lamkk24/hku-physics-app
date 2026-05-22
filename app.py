@@ -33,7 +33,7 @@ except:
     time_limit_mins = 30 
     
     # PUT YOUR EXACT TAB NAME HERE INSTEAD OF "Sheet1"
-    active_bank = "Mechanic"
+    active_bank = "Mechanics"
 
 # Exam Settings
 MAX_QUESTIONS = 20
