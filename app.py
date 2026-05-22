@@ -128,8 +128,8 @@ elif st.session_state.admin_mode:
     with tab3:
         st.write("### Bulk Import Questions")
         
-        # 1. Create the downloadable template for teachers
-        template_csv = "Question_id,Question,Image_url (if requried),Option(s),Correct_answer,Initial difficulty score\nSample,Please delete this row after finished input question,,A, B, C, D,A,0.5"
+        # 1. Create the downloadable template for teachers (Updated format)
+        template_csv = "Question_id,Question,Image_url (if requried) Start with http:// or https://,Correct_answer,Initial difficulty score,Option 1,Option 2,Option 3,Option 4\nSample,Please delete this row after finished input question,,A,0.5,agree,diagree,partially agree,partially disagree"
         
         st.info("Step 1: Download the template and add your questions.")
         st.download_button(
@@ -157,22 +157,34 @@ elif st.session_state.admin_mode:
                 if st.button("🚀 Confirm & Add to Database"):
                     with st.spinner("Translating formatting and writing to Google Sheets..."):
                         
-                        # Translate the friendly teacher column names into our system's column names
+                        # --- 1. DYNAMIC OPTION COMBINER ---
+                        # Find every column name that starts with the word "Option"
+                        option_cols = [col for col in upload_df.columns if col.startswith('Option')]
+                        
+                        def combine_options(row):
+                            # Grab all options for this row, but ignore blank boxes (NaNs)
+                            opts = [str(row[col]).strip() for col in option_cols if pd.notna(row[col])]
+                            return ", ".join(opts) # Glue them together with commas
+                            
+                        # Create the new 'options' column for the database
+                        upload_df['options'] = upload_df.apply(combine_options, axis=1)
+                        # ----------------------------------
+                        
+                        # --- 2. RENAME FORMATTING ---
                         upload_df = upload_df.rename(columns={
                             'Question_id': 'question_id',
                             'Question': 'question_text',
-                            'Image_url (if requried)': 'image_url',
-                            'Option(s)': 'options',
+                            'Image_url (if requried) Start with http:// or https://': 'image_url',
                             'Correct_answer': 'correct_answer',
                             'Initial difficulty score': 'difficulty_score'
                         })
                         
-                        # Automatically create the blank statistics columns for the new questions!
+                        # --- 3. INJECT BLANK STATS ---
                         upload_df['total_attempts'] = 0
                         upload_df['correct_attempts'] = 0
                         upload_df['choice_counts'] = "{}"
                         
-                        # Reorder columns to perfectly match the main database just in case
+                        # --- 4. REORDER TO MATCH MAIN DATABASE ---
                         upload_df = upload_df[['question_id', 'question_text', 'image_url', 'options', 'correct_answer', 'total_attempts', 'correct_attempts', 'difficulty_score', 'choice_counts']]
                         
                         # Combine old questions with the new ones
