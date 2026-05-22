@@ -127,29 +127,64 @@ elif st.session_state.admin_mode:
     # --- TAB 3: UPLOAD TOOL ---
     with tab3:
         st.write("### Bulk Import Questions")
-        st.info("Upload a **CSV** file. It must contain the exact same 9 columns as your main database.")
         
-        uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
+        # 1. Create the downloadable template for teachers
+        template_csv = "Question_id,Question,Image_url (if requried),Option(s),Correct_answer,Initial difficulty score\nSample,Please delete this row after finished input question,,A, B, C, D,A,0.5"
+        
+        st.info("Step 1: Download the template and add your questions.")
+        st.download_button(
+            label="📥 Download Blank Template",
+            data=template_csv,
+            file_name="question_template.csv",
+            mime="text/csv"
+        )
+        
+        st.write("---")
+        st.info("Step 2: Upload your completed CSV file.")
+        uploaded_file = st.file_uploader("Choose your completed CSV file", type=["csv"])
         
         if uploaded_file is not None:
             try:
-                # Read the uploaded file
+                # Read the teacher's uploaded file
                 upload_df = pd.read_csv(uploaded_file)
+                
+                # Remove the "Sample" row if they forgot to delete it
+                upload_df = upload_df[upload_df['Question_id'] != 'Sample']
                 
                 st.write("Preview of your uploaded questions:")
                 st.dataframe(upload_df.head(), use_container_width=True)
                 
                 if st.button("🚀 Confirm & Add to Database"):
-                    with st.spinner("Writing to Google Sheets..."):
-                        # Combine old questions with new questions
+                    with st.spinner("Translating formatting and writing to Google Sheets..."):
+                        
+                        # Translate the friendly teacher column names into our system's column names
+                        upload_df = upload_df.rename(columns={
+                            'Question_id': 'question_id',
+                            'Question': 'question_text',
+                            'Image_url (if requried)': 'image_url',
+                            'Option(s)': 'options',
+                            'Correct_answer': 'correct_answer',
+                            'Initial difficulty score': 'difficulty_score'
+                        })
+                        
+                        # Automatically create the blank statistics columns for the new questions!
+                        upload_df['total_attempts'] = 0
+                        upload_df['correct_attempts'] = 0
+                        upload_df['choice_counts'] = "{}"
+                        
+                        # Reorder columns to perfectly match the main database just in case
+                        upload_df = upload_df[['question_id', 'question_text', 'image_url', 'options', 'correct_answer', 'total_attempts', 'correct_attempts', 'difficulty_score', 'choice_counts']]
+                        
+                        # Combine old questions with the new ones
                         updated_df = pd.concat([df, upload_df], ignore_index=True)
                         
                         # Push the massive new list back to your main sheet
                         conn.update(spreadsheet=SPREADSHEET_ID, data=updated_df)
                         st.cache_data.clear()
-                        st.success(f"Successfully added {len(upload_df)} new questions to the database!")
+                        st.success(f"Successfully added {len(upload_df)} new questions to the live database!")
+                        
             except Exception as e:
-                st.error(f"Error reading file. Please ensure your columns match the template exactly. (Error: {e})")
+                st.error(f"Error reading file. Please ensure you didn't change the column headers from the template. (Error: {e})")
         
     st.write("---")
     if st.button("Logout of Admin"):
